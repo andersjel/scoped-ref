@@ -1,0 +1,15 @@
+[package]
+name = "scoped-ref"
+version = "0.1.0"
+edition = "2024"
+description = "References with safe runtime-checked lifetimes."
+readme = "README.md"
+repository = "https://github.com/andersjel/scoped-ref"
+license = "MIT OR Apache-2.0"
+keywords = ["lifetime", "reference", "scope"]
+categories = ["concurrency", "memory-management"]
+
+[dependencies]
+
+[dev-dependencies]
+smol = "2.0.2"
