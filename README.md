@@ -1,3 +1,8 @@
+[![Crates.io Version](https://img.shields.io/crates/v/scoped-ref.svg)](https://crates.io/crates/scoped-ref)
+[![Docs.rs](https://docs.rs/scoped-ref/badge.svg)](https://docs.rs/scoped-ref)
+[![CI Status](https://github.com/andersjel/scoped-ref/actions/workflows/ci.yml/badge.svg)](https://github.com/andersjel/scoped-ref/actions/workflows/ci.yml)
+[![License](https://img.shields.io/crates/l/scoped-ref.svg)](https://github.com/andersjel/scoped-ref#license)
+
 # Introduction
 
 This crate provides safe references with runtime-checked lifetimes. While a reference is in use, the owner cannot drop the referenced value.
