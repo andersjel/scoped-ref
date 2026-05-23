@@ -1,6 +1,6 @@
 [package]
 name = "scoped-ref"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "References with safe runtime-checked lifetimes."
 readme = "README.md"
@@ -9,7 +9,14 @@ license = "MIT OR Apache-2.0"
 keywords = ["lifetime", "reference", "scope"]
 categories = ["concurrency", "memory-management"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
+smol = { version = "2.0.2", optional = true }
 
 [dev-dependencies]
 smol = "2.0.2"
+
+[features]
+docs = ["dep:smol"]

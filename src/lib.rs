@@ -1,5 +1,39 @@
+//! [![Crates.io Version](https://img.shields.io/crates/v/scoped-ref.svg)](https://crates.io/crates/scoped-ref)
+//! [![Docs.rs](https://docs.rs/scoped-ref/badge.svg)](https://docs.rs/scoped-ref)
+//! [![CI Status](https://github.com/andersjel/scoped-ref/actions/workflows/ci.yml/badge.svg)](https://github.com/andersjel/scoped-ref/actions/workflows/ci.yml)
+//! [![License](https://img.shields.io/crates/l/scoped-ref.svg)](https://github.com/andersjel/scoped-ref/blob/main/LICENSE-MIT)
+//!
+//! # Introduction
+//!
+//! This crate provides safe references with runtime-checked lifetimes. While a
+//! reference is in use, attempts to drop the referenced value will block.
+//!
+//! The main entry-point for this library is the [`Scope`] struct.
+//!
+//! Additional examples are available in the [`examples`] module.
+//!
+//! # Features
+//!
+//! Feature | Default | Description
+//! --- | --- | ---
+//! docs | no | Used internally when building documentation.
+//!
+//! # Similar Crates
+//! - The [lien] crate provides a similar construction without weak references
+//!   but with a more flexible API and `no_std` support.
+//! - The [scoped_reference] crate provides runtime checked references that
+//!   aborts the program (without first running panic handlers) on violations.
+//!   This is preferable to deadlocking, especially in single-threaded use
+//!   cases.
+//!
+//! [lien]: https://crates.io/crates/lien
+//! [scoped_reference]: https://crates.io/crates/scoped_reference
+//! [smol]: https://crates.io/crates/smol
+//! [`smol::Executor<'a>`]: https://docs.rs/smol/2.0.2/smol/struct.Executor.html
+
 #![warn(clippy::pedantic, clippy::allow_attributes)]
-#![doc = include_str!("../README.md")]
+
+pub mod examples;
 
 #[cfg(test)]
 mod tests;
@@ -36,6 +70,45 @@ impl<F> Display for AssignedError<F> {
 }
 
 /// Manages the lifetime of scoped references created with this library.
+///
+/// A [`Scope<T>`] acts effectively like an `Option<&'a T>` (but without the
+/// lifetime parameter). When the [`Scope<T>`] contains a reference, it
+/// is said to be *assigned*, when it does not it is *unassigned*.
+///
+/// An assigned [`Scope<T>`] can be used to produce [`StrongRef<T>`] instances
+/// that dereference to the contained `&T`. A [`Scope<T>`] cannot become
+/// unassigned while [strong references] exist.
+///
+/// Both unassigned and assigned [`Scope<T>`] instances can be used to produce
+/// [`WeakRef<T>`] instances, that can later be [upgraded] to [`StrongRef<T>`]
+/// instances.
+///
+/// To assign a `&T`, to a [`Scope<T>`] you use the [`Scope::assign()`] method.
+/// The method takes `&T` to assign and *body* to execute. When the *body*
+/// returns, and all [`StrongRef<T>`] instances created from the [`Scope<T>`]
+/// are dropped, [`Scope::assign()`] returns and the [`Scope<T>`] is again
+/// unassigned. This ensures that no dangling use of the `&T` can take place.
+///
+/// # Example
+///
+/// ```
+/// # use scoped_ref::{StrongRef, Scope};
+/// fn read_value(reference: StrongRef<i32>) -> i32 {
+///     *reference
+/// }
+///
+/// let scope = Scope::new();
+/// let value = 42;
+///
+/// let result = scope
+///     .assign(&value, || read_value(scope.strong_ref().unwrap()))
+///     .unwrap();
+///
+/// assert_eq!(42, result);
+/// ```
+///
+/// [strong references]: StrongRef
+/// [upgraded]: WeakRef::upgrade()
 #[derive(Default, Debug)]
 pub struct Scope<T: ?Sized> {
     value: RwLock<Option<NonNull<T>>>,
@@ -50,6 +123,10 @@ unsafe impl<T: Sync + ?Sized> Sync for Scope<T> {}
 ///
 /// A weak reference cannot be dereferenced directly, but must first be upgraded
 /// to a [`StrongRef`] with [`WeakRef::upgrade()`].
+///
+/// Note, that the lifetime parameter `'scope` of a [`WeakRef<'scope, T>`] is
+/// that of the associated [`Scope<T>`], _not_ whatever `&T` that the
+/// [`Scope<T>`] happens to be assigned.
 #[derive(Debug, Clone)]
 pub struct WeakRef<'scope, T: ?Sized> {
     source: &'scope Scope<T>,
@@ -62,6 +139,10 @@ pub struct WeakRef<'scope, T: ?Sized> {
 /// A [`StrongRef`] to a [`Scope`] can only be created while [`Scope::assign()`]
 /// is being executed, and [`Scope::assign()`] will not return until all
 /// existing [`StrongRef`] instances have been dropped.
+///
+/// Note, that the lifetime parameter `'scope` of a [`StrongRef<'scope, T>`] is
+/// that of the associated [`Scope<T>`], _not_ the `&T` that the [`Scope<T>`] is
+/// assigned.
 #[derive(Debug)]
 pub struct StrongRef<'scope, T: ?Sized> {
     source: &'scope Scope<T>,
@@ -91,7 +172,7 @@ impl<T: ?Sized> Scope<T> {
     /// [`Self::assign()`].
     ///
     /// # Note
-    /// [`Scope`] and [`WeakRef`] instances can be created statically:
+    /// [`Scope`] and [`WeakRef`] instances can also be created statically:
     ///
     /// ```
     /// # use scoped_ref::*;
@@ -172,7 +253,7 @@ impl<T: ?Sized> Scope<T> {
 
     /// Construct a [`StrongRef`] to this [`Scope`].
     ///
-    /// This will return [`None`][Option::None] if no value is currently
+    /// This will return [`None`] if no value is currently
     /// [assigned][Scope::assign] to this [`Scope`].
     #[must_use]
     pub fn strong_ref(&self) -> Option<StrongRef<'_, T>> {
@@ -183,7 +264,7 @@ impl<T: ?Sized> Scope<T> {
 impl<'scope, T: ?Sized> WeakRef<'scope, T> {
     /// Upgrade this [`WeakRef`] to a [`StrongRef`].
     ///
-    /// This method returns [`None`][Option::None] unless a value is
+    /// This method returns [`None`] unless a value is currently
     /// [assigned][Scope::assign] to the associated [`Scope`].
     #[must_use]
     pub fn upgrade(&self) -> Option<StrongRef<'scope, T>> {
