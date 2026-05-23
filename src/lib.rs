@@ -83,7 +83,7 @@ impl<F> Display for AssignedError<F> {
 /// [`WeakRef<T>`] instances, that can later be [upgraded] to [`StrongRef<T>`]
 /// instances.
 ///
-/// To assign a `&T`, to a [`Scope<T>`] you use the [`Scope::assign()`] method.
+/// To assign a `&T` to a [`Scope<T>`] you use the [`Scope::assign()`] method.
 /// The method takes `&T` to assign and *body* to execute. When the *body*
 /// returns, and all [`StrongRef<T>`] instances created from the [`Scope<T>`]
 /// are dropped, [`Scope::assign()`] returns and the [`Scope<T>`] is again
